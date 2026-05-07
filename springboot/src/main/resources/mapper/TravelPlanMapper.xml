@@ -1,0 +1,75 @@
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.TravelPlanMapper">
+
+    <select id="selectAll" resultType="com.example.entity.TravelPlan">
+        select travel_plan.*, user.name as userName from `travel_plan`
+        left join user on travel_plan.user_id = user.id
+        <where>
+            <if test="destination != null"> and travel_plan.destination like concat('%', #{destination}, '%')</if>
+            <if test="userId != null"> and travel_plan.user_id = #{userId}</if>
+        </where>
+        order by travel_plan.id desc
+    </select>
+
+    <delete id="deleteById">
+        delete from `travel_plan`
+        where id = #{id}
+    </delete>
+
+    <insert id="insert" parameterType="com.example.entity.TravelPlan" keyProperty="id" useGeneratedKeys="true">
+        insert into `travel_plan`
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="id != null">id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="destination != null">destination,</if>
+            <if test="startDate != null">start_date,</if>
+            <if test="endDate != null">end_date,</if>
+            <if test="planData != null">plan_data,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="totalBudget != null">total_budget,</if>
+            <if test="dailyBudget != null">daily_budget,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="id != null">#{id},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="destination != null">#{destination},</if>
+            <if test="startDate != null">#{startDate},</if>
+            <if test="endDate != null">#{endDate},</if>
+            <if test="planData != null">#{planData},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="totalBudget != null">#{totalBudget},</if>
+            <if test="dailyBudget != null">#{dailyBudget},</if>
+        </trim>
+    </insert>
+
+    <update id="updateById" parameterType="com.example.entity.TravelPlan">
+        update `travel_plan`
+        <set>
+            <if test="userId != null">
+                user_id = #{userId},
+            </if>
+            <if test="destination != null">
+                destination = #{destination},
+            </if>
+            <if test="startDate != null">
+                start_date = #{startDate},
+            </if>
+            <if test="endDate != null">
+                end_date = #{endDate},
+            </if>
+            <if test="planData != null">
+                plan_data = #{planData},
+            </if>
+            <if test="totalBudget != null">
+                total_budget = #{totalBudget},
+            </if>
+            <if test="dailyBudget != null">
+                daily_budget = #{dailyBudget},
+            </if>
+        </set>
+        where id = #{id}
+    </update>
+
+</mapper>
