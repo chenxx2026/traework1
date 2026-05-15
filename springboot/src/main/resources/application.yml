@@ -29,3 +29,9 @@ duobao:
   apiKey: ark-c97a4aa8-712e-43e1-83a8-2c4924a31c63-6682e
   apiUrl: https://ark.cn-beijing.volces.com/api/v3/chat/completions
   modelName: ep-20260424185018-npmkd
+
+train:
+  appCode: e25440501fe5449ebfb036abc557d0f0
+  apiHost: http://jisutrainf.market.alicloudapi.com
+  stationApiPath: /train/station2s
+  ticketApiPath: /train/query

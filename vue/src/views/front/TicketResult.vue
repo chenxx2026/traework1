@@ -30,6 +30,17 @@
       <div style="margin-top: 20px;">正在查询车票信息...</div>
     </el-card>
 
+    <el-card v-else-if="data.loadError" style="text-align: center; padding: 50px;">
+      <el-icon style="font-size: 60px; color: #f56c6c;"><Warning /></el-icon>
+      <div style="margin-top: 20px; font-size: 18px; color: #f56c6c;">
+        {{ data.errorMsg }}
+      </div>
+      <div style="margin-top: 10px;">
+        <el-button type="primary" @click="loadTicketData">重新查询</el-button>
+        <el-button @click="goBack">返回修改</el-button>
+      </div>
+    </el-card>
+
     <div v-else>
       <div v-if="data.ticketList.length === 0" style="text-align: center; padding: 50px;">
         <el-icon style="font-size: 60px; color: #999;"><Warning /></el-icon>
@@ -76,11 +87,14 @@
               </el-button>
             </div>
           </div>
-          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: space-between; color: #666;">
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: space-between; color: #666; font-size: 13px;">
             <span>{{ ticket.trainNo }}</span>
-            <span>{{ ticket.seatType }}</span>
-            <span v-if="ticket.remain > 0" style="color: #67c23a;">余票 {{ ticket.remain }} 张</span>
-            <span v-else style="color: #f56c6c;">暂无余票</span>
+            <el-tag size="small" :type="ticket.type === 'G' ? 'danger' : ticket.type === 'D' ? 'warning' : ''">{{ ticket.typeName }}</el-tag>
+            <span>
+              二等座 ¥{{ ticket.priceEd }}
+              <span v-if="ticket.priceYd" style="margin-left: 8px;">一等座 ¥{{ ticket.priceYd }}</span>
+              <span v-if="ticket.priceSw" style="margin-left: 8px;">商务座 ¥{{ ticket.priceSw }}</span>
+            </span>
           </div>
         </el-card>
 
@@ -98,12 +112,15 @@ import { ref, reactive, onMounted } from "vue";
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ArrowLeft, Right, Loading, Warning, InfoFilled } from '@element-plus/icons-vue';
+import request from "@/utils/request";
 
 const router = useRouter();
 const route = useRoute();
 
 const data = reactive({
   loading: true,
+  loadError: false,
+  errorMsg: '',
   query: {
     fromStation: '',
     toStation: '',
@@ -114,121 +131,8 @@ const data = reactive({
   ticketList: []
 });
 
-const mockTicketData = [
-  {
-    trainNo: 'G1',
-    fromStation: '北京南',
-    toStation: '上海虹桥',
-    startTime: '07:00',
-    endTime: '11:36',
-    duration: '4小时36分',
-    price: 553,
-    seatType: '二等座',
-    remain: 20,
-    tags: []
-  },
-  {
-    trainNo: 'G5',
-    fromStation: '北京南',
-    toStation: '上海虹桥',
-    startTime: '08:00',
-    endTime: '12:28',
-    duration: '4小时28分',
-    price: 553,
-    seatType: '二等座',
-    remain: 15,
-    tags: []
-  },
-  {
-    trainNo: 'D313',
-    fromStation: '北京南',
-    toStation: '上海',
-    startTime: '19:35',
-    endTime: '07:32',
-    duration: '11小时57分',
-    price: 309,
-    seatType: '二等座',
-    remain: 5,
-    tags: []
-  },
-  {
-    trainNo: 'G101',
-    fromStation: '北京南',
-    toStation: '上海虹桥',
-    startTime: '06:36',
-    endTime: '12:40',
-    duration: '6小时4分',
-    price: 553,
-    seatType: '二等座',
-    remain: 10,
-    tags: []
-  },
-  {
-    trainNo: 'G3',
-    fromStation: '北京南',
-    toStation: '上海虹桥',
-    startTime: '14:00',
-    endTime: '18:36',
-    duration: '4小时36分',
-    price: 498,
-    seatType: '二等座',
-    remain: 30,
-    tags: []
-  }
-];
-
 const goBack = () => {
   router.back();
-};
-
-const sortBy = (type) => {
-  data.sortType = type;
-  if (type === 'time') {
-    data.ticketList.sort((a, b) => {
-      const aDuration = parseDuration(a.duration);
-      const bDuration = parseDuration(b.duration);
-      return aDuration - bDuration;
-    });
-  } else if (type === 'price') {
-    data.ticketList.sort((a, b) => a.price - b.price);
-  } else if (type === 'start') {
-    data.ticketList.sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }
-  addRecommendTags();
-};
-
-const parseDuration = (duration) => {
-  const match = duration.match(/(\d+)小时(\d+)分/);
-  if (match) {
-    return parseInt(match[1]) * 60 + parseInt(match[2]);
-  }
-  return 0;
-};
-
-const addRecommendTags = () => {
-  data.ticketList.forEach(ticket => {
-    ticket.tags = [];
-  });
-
-  if (data.ticketList.length > 0) {
-    const minDuration = Math.min(...data.ticketList.map(t => parseDuration(t.duration)));
-    const minPrice = Math.min(...data.ticketList.map(t => t.price));
-    const earliestTime = data.ticketList.reduce((earliest, ticket) => {
-      return ticket.startTime < earliest ? ticket.startTime : earliest;
-    }, data.ticketList[0].startTime);
-
-    data.ticketList.forEach(ticket => {
-      if (parseDuration(ticket.duration) === minDuration) {
-        ticket.tags.push('最快');
-      }
-      if (ticket.price === minPrice) {
-        ticket.tags.push('最便宜');
-      }
-      if (ticket.startTime === earliestTime) {
-        ticket.tags.push('最早出发');
-      }
-    });
-  }
 };
 
 const goTo12306 = (ticket) => {
@@ -241,31 +145,164 @@ const goTo12306 = (ticket) => {
       type: 'info'
     }
   ).then(() => {
-    const url = `https://www.12306.cn/index/`;
-    window.open(url, '_blank');
+    window.open('https://www.12306.cn/index/', '_blank');
   }).catch(() => {
   });
 };
 
-const loadTicketData = () => {
+const sortBy = (type) => {
+  data.sortType = type;
+  if (type === 'time') {
+    data.ticketList.sort((a, b) => {
+      const aDuration = parseDuration(a.duration);
+      const bDuration = parseDuration(b.duration);
+      return aDuration - bDuration;
+    });
+  } else if (type === 'price') {
+    data.ticketList.sort((a, b) => (a.price || 0) - (b.price || 0));
+  } else if (type === 'start') {
+    data.ticketList.sort((a, b) => (a.startTime || a.start_time || '').localeCompare(b.startTime || b.start_time || ''));
+  }
+  addRecommendTags();
+};
+
+const parseDuration = (duration) => {
+  if (!duration) return 0;
+  const match = String(duration).match(/(\d+)小时(\d+)分/);
+  if (match) {
+    return parseInt(match[1]) * 60 + parseInt(match[2]);
+  }
+  const hourMatch = String(duration).match(/(\d+):(\d+)/);
+  if (hourMatch) {
+    return parseInt(hourMatch[1]) * 60 + parseInt(hourMatch[2]);
+  }
+  return 0;
+};
+
+const addRecommendTags = () => {
+  data.ticketList.forEach(ticket => {
+    ticket.tags = [];
+  });
+
+  if (data.ticketList.length > 0) {
+    const durations = data.ticketList.map(t => parseDuration(t.duration)).filter(d => d > 0);
+    const prices = data.ticketList.map(t => t.price || 0).filter(p => p > 0);
+    const startTimes = data.ticketList.map(t => t.startTime || '').filter(s => s);
+
+    if (durations.length > 0) {
+      const minDuration = Math.min(...durations);
+      data.ticketList.forEach(ticket => {
+        if (parseDuration(ticket.duration) === minDuration) {
+          ticket.tags.push('最快');
+        }
+      });
+    }
+
+    if (prices.length > 0) {
+      const minPrice = Math.min(...prices);
+      data.ticketList.forEach(ticket => {
+        if ((ticket.price || 0) === minPrice) {
+          ticket.tags.push('最便宜');
+        }
+      });
+    }
+
+    if (startTimes.length > 0) {
+      const earliestTime = startTimes.reduce((earliest, t) => t < earliest ? t : earliest, startTimes[0]);
+      data.ticketList.forEach(ticket => {
+        if (ticket.startTime === earliestTime) {
+          ticket.tags.push('最早出发');
+        }
+      });
+    }
+  }
+};
+
+const normalizeTicketItem = (item) => {
+  return {
+    trainNo: item.trainno || item.train_no || '',
+    typeName: item.typename || item.typename || '',
+    type: item.type || '',
+    fromStation: item.station || item.from_station || '',
+    toStation: item.endstation || item.to_station || '',
+    startTime: item.departuretime || item.starttime || '',
+    endTime: item.arrivaltime || item.endtime || '',
+    duration: item.costtime || item.duration || '',
+    price: item.priceed || item.price || 0,
+    priceEd: item.priceed || 0,
+    priceYd: item.priceyd || 0,
+    priceSw: item.pricesw || 0,
+    priceWz: item.pricewz || 0,
+    priceYxyd: item.priceyxyd || 0,
+    seatType: item.typename || '',
+    remain: 0,
+    isend: item.isend || 0,
+    tags: []
+  };
+};
+
+const loadTicketData = async () => {
   data.loading = true;
-  setTimeout(() => {
-    data.query = {
-      fromStation: route.query.fromStation || '',
-      toStation: route.query.toStation || '',
-      date: route.query.date || '',
-      trainType: route.query.trainType || ''
-    };
+  data.loadError = false;
+  data.errorMsg = '';
 
-    data.ticketList = mockTicketData.map(ticket => ({
-      ...ticket,
-      fromStation: data.query.fromStation + (ticket.fromStation.includes('南') || ticket.fromStation.includes('东') ? '' : '站'),
-      toStation: data.query.toStation + (ticket.toStation.includes('南') || ticket.toStation.includes('东') ? '' : '站')
-    }));
+  data.query = {
+    fromStation: route.query.fromStation || '',
+    toStation: route.query.toStation || '',
+    date: route.query.date || '',
+    trainType: route.query.trainType || ''
+  };
 
-    addRecommendTags();
+  try {
+    const res = await request.get('/ticket/query', {
+      params: {
+        fromStation: data.query.fromStation,
+        toStation: data.query.toStation,
+        date: data.query.date,
+        trainType: data.query.trainType || ''
+      }
+    });
+
+    if (res.code === '200' && res.data) {
+      let ticketList = [];
+
+      if (Array.isArray(res.data)) {
+        ticketList = res.data;
+      } else if (res.data.list && Array.isArray(res.data.list)) {
+        ticketList = res.data.list;
+      } else if (res.data.result && Array.isArray(res.data.result)) {
+        ticketList = res.data.result;
+      } else if (res.data.trainList && Array.isArray(res.data.trainList)) {
+        ticketList = res.data.trainList;
+      }
+
+      if (ticketList.length > 0) {
+        data.ticketList = ticketList.map(normalizeTicketItem);
+        addRecommendTags();
+        data.loading = false;
+        return;
+      }
+    }
+
+    if (res.code !== '200') {
+      data.loadError = true;
+      data.errorMsg = res.msg || '查询失败，请稍后再试';
+    } else {
+      data.ticketList = [];
+    }
+  } catch (e) {
+    console.error('车票查询失败:', e);
+    data.loadError = true;
+    if (e.response && e.response.status === 500) {
+      data.errorMsg = '系统异常，请稍后再试';
+    } else if (e.code === 'ECONNABORTED' || e.message.includes('timeout')) {
+      data.errorMsg = '查询超时，请稍后再试';
+    } else {
+      data.errorMsg = '网络连接失败，请检查网络';
+    }
+  } finally {
     data.loading = false;
-  }, 1000);
+  }
 };
 
 onMounted(() => {
