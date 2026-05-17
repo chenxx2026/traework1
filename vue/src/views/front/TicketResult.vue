@@ -14,6 +14,7 @@
           <el-icon><Right /></el-icon>
           <span style="font-weight: bold; color: #189500;">{{ data.query.toStation }}</span>
           <span style="color: #999; margin-left: 10px;">{{ data.query.date }}</span>
+          <el-tag v-if="typeLabel" size="small" :type="typeTagType">{{ typeLabel }}</el-tag>
         </div>
         <div style="display: flex; gap: 10px;">
           <el-button-group>
@@ -27,7 +28,7 @@
 
     <el-card v-if="data.loading" style="text-align: center; padding: 50px;">
       <el-icon class="is-loading" style="font-size: 40px;"><Loading /></el-icon>
-      <div style="margin-top: 20px;">正在查询车票信息...</div>
+      <div style="margin-top: 20px;">正在查询{{ loadingLabel }}...</div>
     </el-card>
 
     <el-card v-else-if="data.loadError" style="text-align: center; padding: 50px;">
@@ -45,13 +46,13 @@
       <div v-if="data.ticketList.length === 0" style="text-align: center; padding: 50px;">
         <el-icon style="font-size: 60px; color: #999;"><Warning /></el-icon>
         <div style="margin-top: 20px; font-size: 18px; color: #666;">
-          未查询到符合条件的车次，建议更换日期或车站试试
+          未查询到符合条件的{{ emptyLabel }}，建议更换日期或车站试试
         </div>
       </div>
 
       <div v-else>
         <div style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">
-          为你推荐以下车次
+          为你推荐以下{{ listTitle }}
         </div>
 
         <el-card v-for="(ticket, index) in data.ticketList" :key="index" style="margin-bottom: 15px;">
@@ -82,25 +83,43 @@
                 <el-tag v-if="ticket.tags.includes('最便宜')" type="success" size="small">最便宜</el-tag>
                 <el-tag v-if="ticket.tags.includes('最早出发')" type="warning" size="small">最早出发</el-tag>
               </div>
-              <el-button type="primary" @click="goTo12306(ticket)">
-                去12306购买
+              <el-button type="primary" @click="goBuyTicket(ticket)">
+                {{ buyBtnText }}
               </el-button>
             </div>
           </div>
-          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: space-between; color: #666; font-size: 13px;">
+
+          <div v-if="isTrain || (isAll && (!ticket.source || ticket.source === 'train'))" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: space-between; color: #666; font-size: 13px;">
             <span>{{ ticket.trainNo }}</span>
             <el-tag size="small" :type="ticket.type === 'G' ? 'danger' : ticket.type === 'D' ? 'warning' : ''">{{ ticket.typeName }}</el-tag>
-            <span>
+            <span v-if="!isAll">
               二等座 ¥{{ ticket.priceEd }}
               <span v-if="ticket.priceYd" style="margin-left: 8px;">一等座 ¥{{ ticket.priceYd }}</span>
               <span v-if="ticket.priceSw" style="margin-left: 8px;">商务座 ¥{{ ticket.priceSw }}</span>
             </span>
+            <span v-else>
+              ¥{{ ticket.priceEd }}
+            </span>
+          </div>
+
+          <div v-if="isPlane || (isAll && ticket.source === 'plane')" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; color: #666; font-size: 13px;">
+            <span>{{ ticket.flightNo }}</span>
+            <el-tag size="small" type="warning">{{ ticket.airline }}</el-tag>
+            <span>机型：{{ ticket.aircraftType }}</span>
+            <span>准点率：{{ ticket.onTimeRate }}</span>
+          </div>
+
+          <div v-if="isBus || (isAll && ticket.source === 'bus')" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; color: #666; font-size: 13px;">
+            <span>{{ ticket.busNo }}</span>
+            <el-tag size="small" type="success">{{ ticket.company }}</el-tag>
+            <span>车型：{{ ticket.busType }}</span>
+            <span>余座：{{ ticket.seatCount }}座</span>
           </div>
         </el-card>
 
         <div style="margin-top: 30px; padding: 20px; background: #f5f7fa; border-radius: 5px; text-align: center; color: #909399; font-size: 14px;">
           <el-icon style="margin-right: 5px;"><InfoFilled /></el-icon>
-          车票信息仅供参考，实际购票及余票情况以铁路12306官方平台为准
+          {{ footerNotice }}
         </div>
       </div>
     </div>
@@ -108,7 +127,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from "vue";
+import { computed, reactive, onMounted } from "vue";
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from "element-plus";
 import { ArrowLeft, Right, Loading, Warning, InfoFilled } from '@element-plus/icons-vue';
@@ -131,23 +150,90 @@ const data = reactive({
   ticketList: []
 });
 
+const isTrain = computed(() => !data.query.trainType || ['G/D', 'K/T/Z', 'ALL'].includes(data.query.trainType))
+const isPlane = computed(() => data.query.trainType === 'PLANE')
+const isBus = computed(() => data.query.trainType === 'BUS')
+const isAll = computed(() => data.query.trainType === 'ALL')
+
+const loadingLabel = computed(() => {
+  if (isPlane.value) return '航班信息'
+  if (isBus.value) return '汽车票信息'
+  if (isAll.value) return '票务信息'
+  return '车票信息'
+})
+
+const emptyLabel = computed(() => {
+  if (isPlane.value) return '航班'
+  if (isBus.value) return '汽车班次'
+  return '车次'
+})
+
+const listTitle = computed(() => {
+  if (isPlane.value) return '航班'
+  if (isBus.value) return '汽车班次'
+  return '车次'
+})
+
+const typeLabel = computed(() => {
+  if (isPlane.value) return '✈️ 飞机'
+  if (isBus.value) return '🚌 汽车'
+  if (isAll.value) return '全部'
+  return ''
+})
+
+const typeTagType = computed(() => {
+  if (isPlane.value) return 'warning'
+  if (isBus.value) return 'success'
+  return ''
+})
+
+const buyBtnText = computed(() => {
+  if (isPlane.value) return '前往购票'
+  if (isBus.value) return '客运购票'
+  if (isAll.value) return '前往购票'
+  return '去12306购买'
+})
+
+const footerNotice = computed(() => {
+  if (isPlane.value) return '航班信息为AI生成参考数据，实际班次、票价及余票以航空公司官方平台为准'
+  if (isBus.value) return '汽车票信息为AI生成参考数据，实际班次、票价及余票以客运站官方平台为准'
+  if (isAll.value) return '火车票为铁路12306实时数据，航班及汽车票为AI生成参考数据，请以各官方渠道为准'
+  return '车票信息仅供参考，实际购票及余票情况以铁路12306官方平台为准'
+})
+
 const goBack = () => {
   router.back();
 };
 
-const goTo12306 = (ticket) => {
-  ElMessageBox.confirm(
-    '即将前往铁路12306官方平台购票，购票及支付将在12306完成',
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info'
+const goBuyTicket = (ticket) => {
+  if (isAll.value) {
+    const source = ticket.source || 'train'
+    if (source === 'train') {
+      ElMessageBox.confirm('即将前往铁路12306官方平台购票，购票及支付将在12306完成', '提示', {
+        confirmButtonText: '确定', cancelButtonText: '取消', type: 'info'
+      }).then(() => { window.open('https://www.12306.cn/index/', '_blank'); }).catch(() => {});
+    } else if (source === 'plane') {
+      ElMessage.info('请前往航空公司官网或携程、飞猪等OTA平台购票')
+    } else {
+      ElMessage.info('请前往当地客运站或客运联网售票平台购票')
     }
-  ).then(() => {
-    window.open('https://www.12306.cn/index/', '_blank');
-  }).catch(() => {
-  });
+  } else if (isTrain.value) {
+    ElMessageBox.confirm(
+      '即将前往铁路12306官方平台购票，购票及支付将在12306完成',
+      '提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    ).then(() => {
+      window.open('https://www.12306.cn/index/', '_blank');
+    }).catch(() => {});
+  } else if (isPlane.value) {
+    ElMessage.info('请前往航空公司官网或携程、飞猪等OTA平台购票')
+  } else {
+    ElMessage.info('请前往当地客运站或客运联网售票平台购票')
+  }
 };
 
 const sortBy = (type) => {
@@ -161,7 +247,7 @@ const sortBy = (type) => {
   } else if (type === 'price') {
     data.ticketList.sort((a, b) => (a.price || 0) - (b.price || 0));
   } else if (type === 'start') {
-    data.ticketList.sort((a, b) => (a.startTime || a.start_time || '').localeCompare(b.startTime || b.start_time || ''));
+    data.ticketList.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
   }
   addRecommendTags();
 };
@@ -218,10 +304,42 @@ const addRecommendTags = () => {
   }
 };
 
-const normalizeTicketItem = (item) => {
+const normalizeFlightItem = (item) => {
+  return {
+    flightNo: item.flightNo || '',
+    airline: item.airline || '',
+    fromStation: item.fromAirport || '',
+    toStation: item.toAirport || '',
+    startTime: item.departureTime || '',
+    endTime: item.arrivalTime || '',
+    duration: item.duration || '',
+    price: item.price || 0,
+    aircraftType: item.aircraftType || '',
+    onTimeRate: item.onTimeRate || '',
+    tags: []
+  };
+};
+
+const normalizeBusItem = (item) => {
+  return {
+    busNo: item.busNo || '',
+    company: item.company || '',
+    fromStation: item.fromStation || '',
+    toStation: item.toStation || '',
+    startTime: item.departureTime || '',
+    endTime: item.arrivalTime || '',
+    duration: item.duration || '',
+    price: item.price || 0,
+    busType: item.busType || '',
+    seatCount: item.seatCount || 0,
+    tags: []
+  };
+};
+
+const normalizeTrainItem = (item) => {
   return {
     trainNo: item.trainno || item.train_no || '',
-    typeName: item.typename || item.typename || '',
+    typeName: item.typename || '',
     type: item.type || '',
     fromStation: item.station || item.from_station || '',
     toStation: item.endstation || item.to_station || '',
@@ -237,8 +355,26 @@ const normalizeTicketItem = (item) => {
     seatType: item.typename || '',
     remain: 0,
     isend: item.isend || 0,
+    source: item.source || 'train',
     tags: []
   };
+};
+
+const normalizeAllItem = (item) => {
+  const source = item.source || 'train'
+  if (source === 'plane') {
+    const plane = normalizeFlightItem(item)
+    plane.source = 'plane'
+    return plane
+  }
+  if (source === 'bus') {
+    const bus = normalizeBusItem(item)
+    bus.source = 'bus'
+    return bus
+  }
+  const train = normalizeTrainItem(item)
+  train.source = 'train'
+  return train
 };
 
 const loadTicketData = async () => {
@@ -277,7 +413,15 @@ const loadTicketData = async () => {
       }
 
       if (ticketList.length > 0) {
-        data.ticketList = ticketList.map(normalizeTicketItem);
+        if (isAll.value) {
+          data.ticketList = ticketList.map(normalizeAllItem);
+        } else if (isPlane.value) {
+          data.ticketList = ticketList.map(normalizeFlightItem);
+        } else if (isBus.value) {
+          data.ticketList = ticketList.map(normalizeBusItem);
+        } else {
+          data.ticketList = ticketList.map(normalizeTrainItem);
+        }
         addRecommendTags();
         data.loading = false;
         return;
@@ -291,7 +435,7 @@ const loadTicketData = async () => {
       data.ticketList = [];
     }
   } catch (e) {
-    console.error('车票查询失败:', e);
+    console.error('查询失败:', e);
     data.loadError = true;
     if (e.response && e.response.status === 500) {
       data.errorMsg = '系统异常，请稍后再试';

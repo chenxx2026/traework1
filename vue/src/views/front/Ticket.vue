@@ -1,7 +1,7 @@
 <template>
   <div style="width: 60%; margin: 20px auto;">
     <div style="font-size: 28px; text-align: center; margin: 30px 0; font-weight: bold; color: #189500;">
-      🚄 车票查询
+      🚄✈️🚌 票务查询
     </div>
 
     <el-card style="margin-bottom: 20px;">
@@ -41,11 +41,13 @@
             </el-form-item>
           </div>
           <div style="flex: 1;">
-            <el-form-item label="车次类型">
-              <el-select v-model="data.form.trainType" placeholder="请选择车次类型" style="width: 100%;">
-                <el-option label="全部" value=""></el-option>
-                <el-option label="高铁/动车" value="G/D"></el-option>
-                <el-option label="普快" value="K/T/Z"></el-option>
+            <el-form-item label="类型">
+              <el-select v-model="data.form.trainType" placeholder="请选择类型" style="width: 100%;">
+                <el-option label="全部" value="ALL"></el-option>
+                <el-option label="🚄 高铁/动车" value="G/D"></el-option>
+                <el-option label="🚃 普快" value="K/T/Z"></el-option>
+                <el-option label="✈️ 飞机" value="PLANE"></el-option>
+                <el-option label="🚌 汽车" value="BUS"></el-option>
               </el-select>
             </el-form-item>
           </div>
@@ -54,7 +56,7 @@
         <div style="text-align: center; margin-top: 20px;">
           <el-button type="primary" size="large" style="padding: 15px 50px;" @click="searchTickets">
             <el-icon><Search /></el-icon>
-            查询车票
+            查询
           </el-button>
         </div>
       </el-form>
@@ -101,7 +103,7 @@ const data = reactive({
     fromStation: '',
     toStation: '',
     date: '',
-    trainType: ''
+    trainType: 'ALL'
   },
   history: [],
   hotRoutes: [

@@ -35,3 +35,14 @@ train:
   apiHost: http://jisutrainf.market.alicloudapi.com
   stationApiPath: /train/station2s
   ticketApiPath: /train/query
+
+weather:
+  appid:
+  appsecret:
+  apiUrl: https://v0.yiketianqi.com/api
+  fallbackApiUrl: https://wttr.in/
+
+deepseek:
+  apiKey: sk-0e85f836f64d49159c8c844e322952a3
+  apiUrl: https://api.deepseek.com/chat/completions
+  modelName: deepseek-chat

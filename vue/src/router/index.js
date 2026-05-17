@@ -47,7 +47,6 @@ const router = createRouter({
         { path: 'myFeedback', component: () => import('@/views/front/MyFeedback.vue'),  },
         { path: 'ticket', component: () => import('@/views/front/Ticket.vue'),  },
         { path: 'ticketResult', component: () => import('@/views/front/TicketResult.vue'),  },
-        { path: 'travelPlanner', component: () => import('@/views/front/TravelPlanner.vue'),  },
         { path: 'myPlans', component: () => import('@/views/front/MyPlans.vue'),  },
         { path: 'planDetail', component: () => import('@/views/front/PlanDetail.vue'),  },
         { path: 'aiChat', component: () => import('@/views/front/AIChat.vue'),  },
